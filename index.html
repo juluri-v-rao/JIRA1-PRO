@@ -111,7 +111,7 @@
   </div>
   <span class="badge">JIRA</span>
   <span id="hdrDot" class="status-dot"></span>
-  <span id="hdrStatus" class="status-text">Not connected</span>
+  <span id="hdrStatus" class="status-text">Paste API token below and click Load</span>
 </div>
 
 <!-- ── Main content ── -->
@@ -124,7 +124,7 @@
       <div class="overall-pct" id="overallPct">—</div>
       <div class="bar-wrap">
         <div class="bar-track"><div class="bar-fill" id="overallBar" style="width:0%"></div></div>
-        <div class="bar-label" id="overallLabel">Connect to JIRA to load data</div>
+        <div class="bar-label" id="overallLabel">Paste your API token in the bar below and click Load</div>
       </div>
     </div>
   </div>
@@ -143,13 +143,13 @@
   <span class="connect-label">Connect to JIRA</span>
   <span class="connect-sep">|</span>
   <label>Domain</label>
-  <input id="cfDomain" type="text" placeholder="yoursite.atlassian.net" value="dcoretech.atlassian.net" />
+  <input id="cfDomain" type="text" value="dcoretech.atlassian.net" readonly />
   <label>Email</label>
-  <input id="cfEmail" type="email" placeholder="you@example.com" value="juluri.venkateswararao@gmail.com" />
+  <input id="cfEmail" type="email" value="venkateswara.r@dcoretech.in" readonly />
   <label>API Token</label>
-  <input id="cfToken" type="password" placeholder="JIRA API token" class="wide" />
+  <input id="cfToken" type="password" placeholder="Paste your JIRA API token" class="wide" />
   <label>Project</label>
-  <input id="cfProject" type="text" placeholder="TMS02" value="TMS02" style="width:80px" />
+  <input id="cfProject" type="text" value="TMS02" style="width:80px" readonly />
   <button onclick="loadDashboard()">Load</button>
   <button class="secondary" onclick="clearData()">Clear</button>
 </div>
