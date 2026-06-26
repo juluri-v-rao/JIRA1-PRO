@@ -34,11 +34,23 @@ def jira_get(path):
     with urllib.request.urlopen(req) as r:
         return json.loads(r.read())
 
+def jira_post(path, body):
+    url = f"https://{DOMAIN}/rest/api/3/{path}"
+    payload = json.dumps(body).encode()
+    headers = {**HEADERS, "Content-Type": "application/json"}
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
+
 def fetch_all(jql, fields):
     items, start = [], 0
     while True:
-        f = ",".join(fields)
-        data = jira_get(f"search?jql={urllib.parse.quote(jql)}&fields={f}&maxResults=100&startAt={start}")
+        data = jira_post("search/jql", {
+            "jql": jql,
+            "fields": fields,
+            "maxResults": 100,
+            "startAt": start,
+        })
         items += data["issues"]
         start += len(data["issues"])
         if start >= data["total"] or not data["issues"]:
