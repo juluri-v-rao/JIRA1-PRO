@@ -1,469 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TMS02 – Epic Progress Dashboard</title>
-  <style>
-    :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --surface2: #22263a;
-      --border: #2e3250;
-      --accent: #4f8ef7;
-      --accent2: #7c5ce4;
-      --green: #00c48c;
-      --yellow: #ffc542;
-      --orange: #ff9f43;
-      --red: #ff6b6b;
-      --text: #e2e8f0;
-      --muted: #8892a4;
-      --radius: 10px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
-
-    /* ── Header ── */
-    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 14px; }
-    .header h1 { font-size: 18px; font-weight: 700; }
-    .header .badge { background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
-    .header .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; margin-left: auto; }
-    .header .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .header .status-text { font-size: 12px; color: var(--muted); }
-
-    /* ── Layout ── */
-    .main { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
-
-    /* ── Overall Progress Bar ── */
-    .overall-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; }
-    .overall-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
-    .overall-row { display: flex; align-items: center; gap: 16px; }
-    .overall-pct { font-size: 36px; font-weight: 800; color: var(--accent); min-width: 80px; }
-    .bar-wrap { flex: 1; }
-    .bar-track { background: var(--surface2); border-radius: 6px; height: 12px; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 6px; transition: width .6s ease; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
-    .bar-label { font-size: 12px; color: var(--muted); margin-top: 5px; }
-
-    /* ── Grid ── */
-    .epics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
-
-    /* ── Epic Card ── */
-    .epic-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .epic-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
-    .epic-key { font-size: 11px; font-weight: 700; color: var(--accent); background: rgba(79,142,247,.12); padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
-    .epic-title { font-size: 14px; font-weight: 600; line-height: 1.35; }
-    .epic-pct-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px 0; }
-    .epic-pct { font-size: 24px; font-weight: 800; min-width: 56px; }
-    .epic-bar-wrap { flex: 1; }
-    .epic-bar-track { background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
-    .epic-bar-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
-    .effort-tag { font-size: 11px; color: var(--muted); padding: 0 16px 10px; margin-top: 4px; }
-
-    /* ── Phase Section ── */
-    .phases-wrap { padding: 0 16px 6px; }
-    .phases-title { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 10px 0 6px; }
-    .phase-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .phase-name { font-size: 12px; min-width: 130px; color: var(--text); }
-    .phase-bar-track { flex: 1; background: var(--surface2); border-radius: 3px; height: 6px; overflow: hidden; }
-    .phase-bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
-    .phase-pct { font-size: 12px; font-weight: 600; min-width: 36px; text-align: right; }
-    .phase-effort { font-size: 11px; color: var(--muted); min-width: 60px; text-align: right; }
-
-    /* ── Non-common subtasks ── */
-    .other-wrap { padding: 0 16px 14px; }
-    .other-title { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 8px 0 6px; }
-    .subtask-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; font-size: 12px; }
-    .subtask-name { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .status-pill { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
-    .pill-ns  { background: rgba(136,146,164,.18); color: var(--muted); }
-    .pill-ip  { background: rgba(255,197,66,.15); color: var(--yellow); }
-    .pill-ur  { background: rgba(255,159,67,.15); color: var(--orange); }
-    .pill-ac  { background: rgba(0,196,140,.15); color: var(--green); }
-    .subtask-pct { font-size: 11px; font-weight: 600; min-width: 30px; text-align: right; }
-    .subtask-hrs { font-size: 11px; color: var(--muted); min-width: 70px; text-align: right; }
-
-    /* ── Loading / Empty ── */
-    .center-msg { text-align: center; padding: 60px 20px; color: var(--muted); }
-    .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 12px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .error-msg { background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.3); border-radius: var(--radius); padding: 14px 18px; color: #ff8e8e; margin: 0; }
-
-    /* ── Connect to JIRA (bottom, compact) ── */
-    .connect-bar { background: var(--surface); border-top: 1px solid var(--border); padding: 10px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .connect-bar label { font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .connect-bar input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 5px 10px; width: 190px; outline: none; }
-    .connect-bar input:focus { border-color: var(--accent); }
-    .connect-bar input.wide { width: 260px; }
-    .connect-bar button { background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; padding: 6px 16px; cursor: pointer; white-space: nowrap; }
-    .connect-bar button:hover { opacity: .88; }
-    .connect-bar button.secondary { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
-    .connect-sep { color: var(--border); }
-    .connect-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; white-space: nowrap; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TMS02 – Epic Dashboard</title>
+<style>
+:root{--bg:#0f1117;--sur:#1a1d27;--sur2:#22263a;--bdr:#2e3250;
+      --acc:#4f8ef7;--acc2:#7c5ce4;--grn:#00c48c;--ylw:#ffc542;
+      --org:#ff9f43;--txt:#e2e8f0;--mut:#8892a4;--r:10px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;}
+/* header */
+.hdr{background:var(--sur);border-bottom:1px solid var(--bdr);
+      padding:14px 24px;display:flex;align-items:center;gap:12px;}
+.hdr h1{font-size:18px;font-weight:700;}
+.badge{background:var(--acc);color:#fff;font-size:11px;font-weight:700;
+        padding:2px 8px;border-radius:20px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--grn);
+      box-shadow:0 0 6px var(--grn);margin-left:auto;}
+.ts{font-size:11px;color:var(--mut);}
+/* main */
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;}
+/* overall */
+.overall{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:20px 24px;}
+.overall h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+             color:var(--mut);margin-bottom:12px;}
+.ov-row{display:flex;align-items:center;gap:16px;}
+.ov-pct{font-size:36px;font-weight:800;color:var(--acc);min-width:80px;}
+.ov-bar-wrap{flex:1;}
+.ov-track{background:var(--sur2);border-radius:6px;height:12px;overflow:hidden;}
+.ov-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2));}
+.ov-lbl{font-size:12px;color:var(--mut);margin-top:5px;}
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;}
+/* card */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;}
+.card-head{padding:14px 16px 10px;border-bottom:1px solid var(--bdr);
+            display:flex;align-items:flex-start;gap:10px;}
+.ekey{font-size:11px;font-weight:700;color:var(--acc);
+       background:rgba(79,142,247,.12);padding:2px 7px;border-radius:4px;white-space:nowrap;}
+.etitle{font-size:14px;font-weight:600;line-height:1.35;}
+.epct-row{display:flex;align-items:center;gap:10px;padding:10px 16px 0;}
+.epct{font-size:24px;font-weight:800;min-width:56px;}
+.bar-wrap{flex:1;}
+.bar-track{background:var(--sur2);border-radius:4px;height:8px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;}
+.eff-tag{font-size:11px;color:var(--mut);padding:4px 16px 10px;}
+/* sections */
+.section{padding:0 16px 12px;}
+.sec-title{font-size:10px;text-transform:uppercase;letter-spacing:.07em;
+            color:var(--mut);margin:8px 0 6px;}
+/* phase row */
+.phase-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.phase-name{font-size:12px;min-width:130px;}
+.phase-bar-track{flex:1;background:var(--sur2);border-radius:3px;height:6px;overflow:hidden;}
+.phase-bar-fill{height:100%;border-radius:3px;}
+.phase-pct{font-size:12px;font-weight:600;min-width:36px;text-align:right;}
+.phase-eff{font-size:11px;color:var(--mut);min-width:55px;text-align:right;}
+/* subtask row */
+.sub-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:12px;}
+.sub-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pill{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;white-space:nowrap;}
+.pill-ns{background:rgba(136,146,164,.18);color:var(--mut);}
+.pill-ip{background:rgba(255,197,66,.15);color:var(--ylw);}
+.pill-ur{background:rgba(255,159,67,.15);color:var(--org);}
+.pill-ac{background:rgba(0,196,140,.15);color:var(--grn);}
+.sub-pct{font-size:11px;font-weight:600;min-width:30px;text-align:right;}
+.sub-eff{font-size:11px;color:var(--mut);min-width:80px;text-align:right;}
+.more{font-size:11px;color:var(--mut);padding:2px 0;}
+/* footer */
+.ftr{background:var(--sur);border-top:1px solid var(--bdr);
+      padding:10px 24px;font-size:11px;color:var(--mut);text-align:center;}
+</style>
 </head>
 <body>
-
-<!-- ── Header ── -->
-<div class="header">
+<div class="hdr">
   <div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">PROJECT</div>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:2px">PROJECT</div>
     <h1>TMS02 — Epic Progress Dashboard</h1>
   </div>
   <span class="badge">JIRA</span>
-  <span id="hdrDot" class="status-dot"></span>
-  <span id="hdrStatus" class="status-text">Paste API token below and click Load</span>
+  <span class="dot"></span>
+  <span class="ts">Auto-generated &middot; 2026-06-26 13:28 UTC</span>
 </div>
-
-<!-- ── Main content ── -->
 <div class="main">
-
-  <!-- Overall -->
-  <div class="overall-card">
+  <div class="overall">
     <h2>Overall Project Progress</h2>
-    <div class="overall-row">
-      <div class="overall-pct" id="overallPct">—</div>
-      <div class="bar-wrap">
-        <div class="bar-track"><div class="bar-fill" id="overallBar" style="width:0%"></div></div>
-        <div class="bar-label" id="overallLabel">Paste your API token in the bar below and click Load</div>
+    <div class="ov-row">
+      <div class="ov-pct">0%</div>
+      <div class="ov-bar-wrap">
+        <div class="ov-track"><div class="ov-fill" style="width:0%"></div></div>
+        <div class="ov-lbl">0.0h planned across 8 epics</div>
       </div>
     </div>
   </div>
-
-  <!-- Epics grid -->
-  <div id="epicsContainer">
-    <div class="center-msg">
-      <div>Connect to JIRA below to load epics</div>
-    </div>
+  <div class="grid">
+    <div class="card"><div class="card-head"><span class="ekey">TMS02-1</span><span class="etitle">[Feature][PM-01] Daily Processing（日次処理）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-2</span><span class="etitle">[Feature][PM-02] Billing Processing（請求処理）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-3</span><span class="etitle">[Feature][PM-03] Payment Processing（支払処理）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-4</span><span class="etitle">[Feature][PM-04] Management Processing（管理処理）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div><div class="section"><div class="sec-title">Other Subtasks</div><div class="sub-row"><span class="sub-name" title="API Deisgn">API Deisgn</span><span class="pill pill-ns">Not Started</span><span class="sub-pct" style="color:#8892a4">0%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-5</span><span class="etitle">[Feature][PM-05] Master Settings（マスタ設定）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-6</span><span class="etitle">[Feature][PM-06] Administrator Settings（管理者設定）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-7</span><span class="etitle">[Feature][PM-07] Customization Settings（カスタマイズ設定）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div></div><div class="card"><div class="card-head"><span class="ekey">TMS02-185</span><span class="etitle">[Feature][PM-99] Common（共通）</span></div><div class="epct-row"><span class="epct" style="color:#ffc542">30%</span><div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:30%;background:#ffc542"></div></div></div></div><div class="eff-tag">0.0h planned &middot; 0.0h logged</div><div class="section"><div class="sec-title">Phases</div><div class="phase-row"><span class="phase-name">Requirements</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">Screen Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+<div class="phase-row"><span class="phase-name">API Design</span><div class="phase-bar-track"><div class="phase-bar-fill" style="width:0%;background:#8892a4"></div></div><span class="phase-pct" style="color:#8892a4">0%</span><span class="phase-eff">0.0h</span></div>
+</div><div class="section"><div class="sec-title">Other Subtasks</div><div class="sub-row"><span class="sub-name" title="Report Design">Report Design</span><span class="pill pill-ns">Not Started</span><span class="sub-pct" style="color:#8892a4">0%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+<div class="sub-row"><span class="sub-name" title="API Common Design">API Common Design</span><span class="pill pill-ac">Approval Complete</span><span class="sub-pct" style="color:#00c48c">100%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+<div class="sub-row"><span class="sub-name" title="Table Common Design">Table Common Design</span><span class="pill pill-ac">Approval Complete</span><span class="sub-pct" style="color:#00c48c">100%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+<div class="sub-row"><span class="sub-name" title="Infra Design">Infra Design</span><span class="pill pill-ns">Not Started</span><span class="sub-pct" style="color:#8892a4">0%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+<div class="sub-row"><span class="sub-name" title="Log Design">Log Design</span><span class="pill pill-ac">Approval Complete</span><span class="sub-pct" style="color:#00c48c">100%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+<div class="sub-row"><span class="sub-name" title="Authentication and Session Design">Authentication and Session Design</span><span class="pill pill-ac">Approval Complete</span><span class="sub-pct" style="color:#00c48c">100%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+<div class="sub-row"><span class="sub-name" title="Screen Common Design">Screen Common Design</span><span class="pill pill-ac">Approval Complete</span><span class="sub-pct" style="color:#00c48c">100%</span><span class="sub-eff">0.0h / 0.0h</span></div>
+</div></div>
   </div>
-
 </div>
-
-<!-- ── Connect to JIRA (bottom, full-width, compact) ── -->
-<div class="connect-bar" id="connectBar">
-  <span class="connect-label">Connect to JIRA</span>
-  <span class="connect-sep">|</span>
-  <label>Domain</label>
-  <input id="cfDomain" type="text" value="dcoretech.atlassian.net" readonly />
-  <label>Email</label>
-  <input id="cfEmail" type="email" value="venkateswara.r@dcoretech.in" readonly />
-  <label>API Token</label>
-  <input id="cfToken" type="password" placeholder="Paste your JIRA API token" class="wide" />
-  <label>Project</label>
-  <input id="cfProject" type="text" value="TMS02" style="width:80px" readonly />
-  <button onclick="loadDashboard()">Load</button>
-  <button class="secondary" onclick="clearData()">Clear</button>
-</div>
-
-<script>
-// ── Constants ──
-const COMMON_PHASES = ['Screen Design', 'Requirements', 'API Design'];
-const STATUS_PCT = {
-  'Not Started': 0, '未着手': 0,
-  'In Progress': 30, '作成中': 30,
-  'Under Review': 80, '内部レビュー中': 80,
-  'Approval Complete': 100, '承認完了': 100,
-};
-
-function statusPct(statusName) {
-  if (!statusName) return 0;
-  for (const [k, v] of Object.entries(STATUS_PCT)) {
-    if (statusName.toLowerCase().includes(k.toLowerCase())) return v;
-  }
-  // fallback: map common JIRA default statuses
-  const n = statusName.toLowerCase();
-  if (n === 'done' || n === 'closed' || n === 'resolved') return 100;
-  if (n === 'in progress' || n === 'in review') return 30;
-  return 0;
-}
-
-function pillClass(pct) {
-  if (pct === 0) return 'pill-ns';
-  if (pct <= 30) return 'pill-ip';
-  if (pct <= 80) return 'pill-ur';
-  return 'pill-ac';
-}
-function pillLabel(pct) {
-  if (pct === 0) return 'Not Started';
-  if (pct <= 30) return 'In Progress';
-  if (pct <= 80) return 'Under Review';
-  return 'Approval Complete';
-}
-
-function barColor(pct) {
-  if (pct >= 100) return 'var(--green)';
-  if (pct >= 80) return 'var(--accent)';
-  if (pct >= 30) return 'var(--yellow)';
-  return 'var(--muted)';
-}
-
-function hrsToDisplay(hrs) {
-  const d = Math.floor(hrs / 8);
-  const h = Math.round(hrs % 8 * 10) / 10;
-  if (d === 0) return `${h}h`;
-  if (h === 0) return `${d}d`;
-  return `${d}d ${h}h`;
-}
-
-// ── JIRA API helpers ──
-let BASE, AUTH;
-
-async function jiraGet(path) {
-  const url = `https://${BASE}/rest/api/3/${path}`;
-  const res = await fetch(url, {
-    headers: { 'Authorization': `Basic ${AUTH}`, 'Accept': 'application/json' }
-  });
-  if (!res.ok) throw new Error(`JIRA ${res.status}: ${res.statusText} — ${path}`);
-  return res.json();
-}
-
-async function fetchAllPages(jql, fields) {
-  let start = 0, total = Infinity, items = [];
-  while (start < total) {
-    const f = fields.join(',');
-    const data = await jiraGet(`search?jql=${encodeURIComponent(jql)}&fields=${f}&maxResults=100&startAt=${start}`);
-    items = items.concat(data.issues);
-    total = data.total;
-    start += data.issues.length;
-    if (data.issues.length === 0) break;
-  }
-  return items;
-}
-
-// ── Main loader ──
-async function loadDashboard() {
-  BASE = document.getElementById('cfDomain').value.trim();
-  const email = document.getElementById('cfEmail').value.trim();
-  const token = document.getElementById('cfToken').value.trim();
-  const project = document.getElementById('cfProject').value.trim() || 'TMS02';
-
-  if (!BASE || !email || !token) { alert('Please fill in Domain, Email, and API Token.'); return; }
-
-  AUTH = btoa(`${email}:${token}`);
-
-  const dot = document.getElementById('hdrDot');
-  const hdrSt = document.getElementById('hdrStatus');
-  const container = document.getElementById('epicsContainer');
-
-  dot.className = 'status-dot';
-  hdrSt.textContent = 'Connecting…';
-  container.innerHTML = '<div class="center-msg"><div class="spinner"></div><div>Fetching epics…</div></div>';
-  document.getElementById('overallPct').textContent = '…';
-
-  try {
-    // 1. Fetch epics
-    const epicFields = ['summary', 'status', 'customfield_10016', 'timeoriginalestimate', 'timespent', 'subtasks', 'issuetype'];
-    const epics = await fetchAllPages(`project=${project} AND issuetype=Epic ORDER BY created ASC`, epicFields);
-
-    if (epics.length === 0) {
-      container.innerHTML = '<div class="center-msg">No epics found in project ' + project + '</div>';
-      return;
-    }
-
-    hdrSt.textContent = `Loading ${epics.length} epics…`;
-
-    // 2. For each epic, fetch child tasks/stories then their subtasks
-    const epicData = [];
-    for (const epic of epics) {
-      const key = epic.key;
-      const title = epic.fields.summary;
-
-      // fetch tasks under this epic
-      const taskFields = ['summary', 'status', 'timeoriginalestimate', 'timespent', 'subtasks', 'issuetype', 'parent'];
-      let tasks = await fetchAllPages(
-        `project=${project} AND "Epic Link"=${key} AND issuetype not in (Epic,Sub-task)`,
-        taskFields
-      ).catch(() => []);
-
-      // also try parentEpic / parent field approach for next-gen projects
-      if (tasks.length === 0) {
-        tasks = await fetchAllPages(
-          `project=${project} AND parent=${key} AND issuetype not in (Epic,Sub-task)`,
-          taskFields
-        ).catch(() => []);
-      }
-
-      // For each task, fetch its subtasks
-      const taskData = [];
-      for (const task of tasks) {
-        const subtaskRefs = task.fields.subtasks || [];
-        const subtasks = [];
-        for (const st of subtaskRefs) {
-          try {
-            const stDetail = await jiraGet(`issue/${st.key}?fields=summary,status,timeoriginalestimate,timespent`);
-            const plannedSec = stDetail.fields.timeoriginalestimate || 0;
-            const spentSec   = stDetail.fields.timespent || 0;
-            subtasks.push({
-              key: st.key,
-              name: stDetail.fields.summary,
-              status: stDetail.fields.status?.name || 'Not Started',
-              plannedHrs: plannedSec / 3600,
-              spentHrs: spentSec / 3600,
-              pct: statusPct(stDetail.fields.status?.name),
-            });
-          } catch (_) {}
-        }
-
-        // If no subtasks in JIRA, treat the task itself as a leaf
-        if (subtasks.length === 0) {
-          const plannedSec = task.fields.timeoriginalestimate || 0;
-          const spentSec   = task.fields.timespent || 0;
-          subtasks.push({
-            key: task.key,
-            name: task.fields.summary,
-            status: task.fields.status?.name || 'Not Started',
-            plannedHrs: plannedSec / 3600,
-            spentHrs: spentSec / 3600,
-            pct: statusPct(task.fields.status?.name),
-          });
-        }
-
-        // Task progress = Σ(subtask planned * pct) / Σ(subtask planned)
-        const totalPlanned = subtasks.reduce((s, st) => s + st.plannedHrs, 0);
-        const weightedSum  = subtasks.reduce((s, st) => s + st.plannedHrs * st.pct, 0);
-        const taskPct = totalPlanned > 0 ? weightedSum / totalPlanned : statusPct(task.fields.status?.name);
-
-        taskData.push({
-          key: task.key,
-          name: task.fields.summary,
-          status: task.fields.status?.name,
-          plannedHrs: totalPlanned || (task.fields.timeoriginalestimate || 0) / 3600,
-          spentHrs: subtasks.reduce((s, st) => s + st.spentHrs, 0),
-          pct: taskPct,
-          subtasks,
-        });
-      }
-
-      // Epic progress = Σ(task planned * pct) / Σ(task planned)
-      const epicPlanned = taskData.reduce((s, t) => s + t.plannedHrs, 0);
-      const epicWeighted = taskData.reduce((s, t) => s + t.plannedHrs * t.pct, 0);
-      const epicPct = epicPlanned > 0 ? epicWeighted / epicPlanned : statusPct(epic.fields.status?.name);
-
-      // Group subtasks into phases (common names) vs others
-      // Flatten all subtasks from all tasks
-      const allSubtasks = taskData.flatMap(t => t.subtasks);
-
-      // Phase grouping: subtasks whose names CONTAIN a common phase keyword
-      const phases = {};
-      const otherSubtasks = [];
-
-      for (const st of allSubtasks) {
-        let matched = false;
-        for (const phase of COMMON_PHASES) {
-          if (st.name.toLowerCase().includes(phase.toLowerCase())) {
-            if (!phases[phase]) phases[phase] = [];
-            phases[phase].push(st);
-            matched = true;
-            break;
-          }
-        }
-        if (!matched) otherSubtasks.push(st);
-      }
-
-      // Phase progress = Σ(st planned * pct) / Σ(st planned)
-      const phaseStats = {};
-      for (const [pname, sts] of Object.entries(phases)) {
-        const pl = sts.reduce((s, st) => s + st.plannedHrs, 0);
-        const ws = sts.reduce((s, st) => s + st.plannedHrs * st.pct, 0);
-        phaseStats[pname] = {
-          pct: pl > 0 ? ws / pl : 0,
-          plannedHrs: pl,
-          spentHrs: sts.reduce((s, st) => s + st.spentHrs, 0),
-          count: sts.length,
-        };
-      }
-
-      epicData.push({ key, title, epicPct, epicPlanned, epicSpent: taskData.reduce((s,t)=>s+t.spentHrs,0), taskData, phaseStats, otherSubtasks });
-    }
-
-    // Overall = Σ(epicPlanned * epicPct) / Σ(epicPlanned)
-    const totalEpicPlanned = epicData.reduce((s, e) => s + e.epicPlanned, 0);
-    const totalEpicWeighted = epicData.reduce((s, e) => s + e.epicPlanned * e.epicPct, 0);
-    const overallPct = totalEpicPlanned > 0 ? totalEpicWeighted / totalEpicPlanned : 0;
-
-    // Update overall bar
-    const op = Math.round(overallPct);
-    document.getElementById('overallPct').textContent = op + '%';
-    document.getElementById('overallBar').style.width = op + '%';
-    document.getElementById('overallLabel').textContent =
-      `${hrsToDisplay(totalEpicPlanned)} planned across ${epicData.length} epics`;
-
-    // Render epics
-    container.innerHTML = `<div class="epics-grid">${epicData.map(renderEpicCard).join('')}</div>`;
-
-    dot.className = 'status-dot connected';
-    hdrSt.textContent = `Connected · ${epicData.length} epics · Last updated ${new Date().toLocaleTimeString()}`;
-
-  } catch (err) {
-    container.innerHTML = `<div class="error-msg">⚠ ${err.message}<br><small>Check your domain, email, API token, and that CORS is allowed by your browser.</small></div>`;
-    dot.className = 'status-dot';
-    hdrSt.textContent = 'Connection failed';
-    document.getElementById('overallPct').textContent = '—';
-  }
-}
-
-function renderEpicCard(e) {
-  const pct = Math.round(e.epicPct);
-  const color = barColor(pct);
-
-  // Phase rows (only Screen Design + Requirements prominently, others if present)
-  const phaseHtml = Object.keys(e.phaseStats).length > 0 ? `
-    <div class="phases-wrap">
-      <div class="phases-title">Phases</div>
-      ${Object.entries(e.phaseStats).map(([name, s]) => {
-        const pp = Math.round(s.pct);
-        return `<div class="phase-row">
-          <span class="phase-name">${esc(name)}</span>
-          <div class="phase-bar-track"><div class="phase-bar-fill" style="width:${pp}%;background:${barColor(pp)}"></div></div>
-          <span class="phase-pct" style="color:${barColor(pp)}">${pp}%</span>
-          <span class="phase-effort">${hrsToDisplay(s.plannedHrs)}</span>
-        </div>`;
-      }).join('')}
-    </div>` : '';
-
-  // Non-common subtasks
-  const otherHtml = e.otherSubtasks.length > 0 ? `
-    <div class="other-wrap">
-      <div class="other-title">Other Subtasks</div>
-      ${e.otherSubtasks.slice(0,15).map(st => `
-        <div class="subtask-row">
-          <span class="subtask-name" title="${esc(st.name)}">${esc(st.name)}</span>
-          <span class="status-pill ${pillClass(st.pct)}">${pillLabel(st.pct)}</span>
-          <span class="subtask-pct" style="color:${barColor(st.pct)}">${st.pct}%</span>
-          <span class="subtask-hrs">${hrsToDisplay(st.plannedHrs)} / ${hrsToDisplay(st.spentHrs)}</span>
-        </div>`).join('')}
-      ${e.otherSubtasks.length > 15 ? `<div style="font-size:11px;color:var(--muted);padding:4px 0">+${e.otherSubtasks.length - 15} more…</div>` : ''}
-    </div>` : '';
-
-  return `
-  <div class="epic-card">
-    <div class="epic-header">
-      <span class="epic-key">${esc(e.key)}</span>
-      <span class="epic-title">${esc(e.title)}</span>
-    </div>
-    <div class="epic-pct-row">
-      <span class="epic-pct" style="color:${color}">${pct}%</span>
-      <div class="epic-bar-wrap">
-        <div class="epic-bar-track"><div class="epic-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-      </div>
-    </div>
-    <div class="effort-tag">${hrsToDisplay(e.epicPlanned)} planned · ${hrsToDisplay(e.epicSpent)} logged</div>
-    ${phaseHtml}
-    ${otherHtml}
-  </div>`;
-}
-
-function esc(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function clearData() {
-  document.getElementById('overallPct').textContent = '—';
-  document.getElementById('overallBar').style.width = '0%';
-  document.getElementById('overallLabel').textContent = 'Connect to JIRA to load data';
-  document.getElementById('epicsContainer').innerHTML = '<div class="center-msg">Connect to JIRA below to load epics</div>';
-  document.getElementById('hdrDot').className = 'status-dot';
-  document.getElementById('hdrStatus').textContent = 'Not connected';
-}
-</script>
+<div class="ftr">Auto-refreshed every 30 min via GitHub Actions &middot; TMS02 &middot; dcoretech.atlassian.net</div>
 </body>
 </html>
