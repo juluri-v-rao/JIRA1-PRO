@@ -45,7 +45,7 @@ def jira_post(path, body):
 def fetch_all(jql, fields):
     items, start = [], 0
     while True:
-        data = jira_post("search/jql", {
+                data = jira_post("search", {
             "jql": jql,
             "fields": fields,
             "maxResults": 100,
