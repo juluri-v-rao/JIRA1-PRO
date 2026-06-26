@@ -1,5 +1,3 @@
-$ cat /home/user/JIRA1-PRO/generate.py
-
 #!/usr/bin/env python3
 """Fetches TMS02 JIRA data and generates a static index.html dashboard."""
 
