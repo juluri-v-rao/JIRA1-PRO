@@ -13,7 +13,7 @@ BASE    = f"https://{DOMAIN}/rest/api/3"
 HEADERS = {"Authorization": f"Basic {AUTH}", "Accept": "application/json",
            "Content-Type": "application/json"}
 
-PHASES = ["Requirements", "Screen Design", "Development", "API Development", "IT Testing"]
+PHASES = ["Requirements", "Screen Design", "API Development", "Development", "IT Testing"]
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
 
