@@ -55,7 +55,7 @@ def status_group(name):
         return "inprogress"
     return "todo"
 
-GROUP_PCT = {"todo": 0, "inprogress": 30, "review": 80, "done": 100}
+GROUP_PCT = {"todo": 0, "inprogress": 50, "review": 80, "done": 100}
 
 def matched_phase(name):
     """Return the phase this subtask belongs to, or None."""
@@ -319,16 +319,7 @@ function esc(s){
 }
 
 function epicPct(phaseSubs){
-  // phaseSubs: array of subtask objects that match the phase
-  const grpPct={todo:0,inprogress:30,review:80,done:100};
-  let tw=0,tp=0;
-  phaseSubs.forEach(s=>{
-    const p=s.plannedHrs||0;
-    const pct=grpPct[s.group]||0;
-    if(p>0){tw+=p*pct;tp+=p;}
-  });
-  if(tp>0) return Math.round(tw/tp);
-  // fallback: count-based
+  const grpPct={todo:0,inprogress:50,review:80,done:100};
   if(!phaseSubs.length) return 0;
   const sum=phaseSubs.reduce((a,s)=>a+(grpPct[s.group]||0),0);
   return Math.round(sum/phaseSubs.length);
