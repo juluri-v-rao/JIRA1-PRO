@@ -270,6 +270,20 @@ select#phaseSelect:focus{border-color:var(--acc);}
 
 /* ── no-data ── */
 .no-data{padding:20px;text-align:center;color:var(--mut);font-size:13px;}
+
+/* ── sub-group sections ── */
+.subgroup-list{display:flex;flex-direction:column;gap:0;}
+.subgroup-section{border-top:1px solid var(--bdr);}
+.subgroup-hdr{
+  padding:10px 18px;background:var(--sur2);
+  display:flex;align-items:center;gap:10px;
+}
+.subgroup-name{font-size:12px;font-weight:700;text-transform:uppercase;
+               letter-spacing:.06em;color:var(--txt);flex:1;}
+.subgroup-pct{font-size:12px;font-weight:700;padding:2px 10px;
+              border-radius:12px;background:var(--sur);white-space:nowrap;}
+.subgroup-pbar{width:80px;}
+
 @media(max-width:700px){
   .status-grid{grid-template-columns:repeat(2,1fr);}
   .status-col:nth-child(2){border-right:none;}
@@ -318,11 +332,65 @@ function esc(s){
                   .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Sub-group config: keyed by substring of epic title or key
+const EPIC_SUBGROUPS = {
+  "PM-05": [
+    {name:"Master Settings",    keywords:["Master Settings","SM-05"]},
+    {name:"Modal Masters",      keywords:["Modal Masters","FN-05M"]},
+    {name:"Modal Search Screens",keywords:["Modal Search","FN-05S"]},
+  ]
+};
+
 function epicPct(phaseSubs){
   const grpPct={todo:0,inprogress:50,review:80,done:100};
   if(!phaseSubs.length) return 0;
   const sum=phaseSubs.reduce((a,s)=>a+(grpPct[s.group]||0),0);
   return Math.round(sum/phaseSubs.length);
+}
+
+function getEpicSubGroups(epic){
+  for(const key of Object.keys(EPIC_SUBGROUPS)){
+    if(epic.key.includes(key)||epic.title.includes(key)) return EPIC_SUBGROUPS[key];
+  }
+  return null;
+}
+
+function parentMatchesSG(parentName, sg){
+  const pn=(parentName||'').toLowerCase();
+  return sg.keywords.some(k=>pn.includes(k.toLowerCase()));
+}
+
+function buildStatusCols(subs){
+  const COLS=[
+    {key:'todo',     label:'To-Do'},
+    {key:'inprogress',label:'In Progress'},
+    {key:'review',   label:'Review'},
+    {key:'done',     label:'Done'},
+  ];
+  const groups={todo:[],inprogress:[],review:[],done:[]};
+  subs.forEach(s=>{ (groups[s.group]=groups[s.group]||[]).push(s); });
+  let html='';
+  COLS.forEach(c=>{
+    const items=groups[c.key]||[];
+    const seen=new Set();
+    let chips='';
+    items.forEach(s=>{
+      if(!seen.has(s.parentKey)){
+        seen.add(s.parentKey);
+        chips+=`<div class="task-chip" title="${esc(s.parentName)}">${esc(s.parentName)}</div>`;
+      }
+    });
+    html+=`
+      <div class="status-col ${groupOf(c.key)}">
+        <div class="status-head">
+          <span class="status-dot"></span>
+          <span class="status-label">${c.label}</span>
+        </div>
+        <div class="status-count">${items.length}</div>
+        <div class="task-list">${chips||'<span style="font-size:11px;color:var(--mut)">—</span>'}</div>
+      </div>`;
+  });
+  return html;
 }
 
 function render(){
@@ -335,58 +403,20 @@ function render(){
 
   DATA.forEach(epic=>{
     // collect subtasks matching this phase, with their parent task info
-    const groups={todo:[],inprogress:[],review:[],done:[]};
-
+    const allSubs=[];
     epic.tasks.forEach(task=>{
       task.subtasks.forEach(sub=>{
         if(sub.phase===phase){
-          groups[sub.group]=groups[sub.group]||[];
-          groups[sub.group].push({...sub, parentName:task.name, parentKey:task.key});
+          allSubs.push({...sub, parentName:task.name, parentKey:task.key});
           allPhaseSubs.push(sub);
         }
       });
     });
 
-    const total=groups.todo.length+groups.inprogress.length+
-                groups.review.length+groups.done.length;
-
-    // flatten phase subs for % calc
-    const flatSubs=[...groups.todo,...groups.inprogress,...groups.review,...groups.done];
-    const pct=epicPct(flatSubs);
+    const total=allSubs.length;
+    const pct=epicPct(allSubs);
     const col=barColor(pct);
 
-    // status columns
-    const COLS=[
-      {key:'todo',     label:'To-Do'},
-      {key:'inprogress',label:'In Progress'},
-      {key:'review',   label:'Review'},
-      {key:'done',     label:'Done'},
-    ];
-
-    let colsHtml='';
-    COLS.forEach(c=>{
-      const items=groups[c.key]||[];
-      // deduplicate parent tasks shown
-      const seen=new Set();
-      let chips='';
-      items.forEach(s=>{
-        if(!seen.has(s.parentKey)){
-          seen.add(s.parentKey);
-          chips+=`<div class="task-chip" title="${esc(s.parentName)}">${esc(s.parentName)}</div>`;
-        }
-      });
-      colsHtml+=`
-        <div class="status-col ${groupOf(c.key)}">
-          <div class="status-head">
-            <span class="status-dot"></span>
-            <span class="status-label">${c.label}</span>
-          </div>
-          <div class="status-count">${items.length}</div>
-          <div class="task-list">${chips||'<span style="font-size:11px;color:var(--mut)">—</span>'}</div>
-        </div>`;
-    });
-
-    // hide epics with no matching subtasks if zero
     if(total===0){
       epicCards+=`
         <div class="epic-card">
@@ -398,6 +428,38 @@ function render(){
           <div class="no-data">No <strong>${esc(phase)}</strong> subtasks found in this epic.</div>
         </div>`;
       return;
+    }
+
+    const subGroups=getEpicSubGroups(epic);
+
+    let bodyHtml='';
+    if(subGroups){
+      // Render 3 sub-group sections
+      let sgSections='';
+      subGroups.forEach(sg=>{
+        const sgSubs=allSubs.filter(s=>parentMatchesSG(s.parentName,sg));
+        const sgPct=epicPct(sgSubs);
+        const sgCol=barColor(sgPct);
+        const colsHtml=sgSubs.length?buildStatusCols(sgSubs):'';
+        sgSections+=`
+          <div class="subgroup-section">
+            <div class="subgroup-hdr">
+              <span class="subgroup-name">${esc(sg.name)}</span>
+              <span class="subgroup-pct" style="color:${sgCol}">${sgPct}%</span>
+              <div class="subgroup-pbar">
+                <div class="pbar-track">
+                  <div class="pbar-fill" style="width:${sgPct}%;background:${sgCol}"></div>
+                </div>
+              </div>
+            </div>
+            ${sgSubs.length
+              ?`<div class="status-grid">${colsHtml}</div>`
+              :`<div class="no-data" style="padding:10px 18px;text-align:left">No subtasks matched for this sub-group in <strong>${esc(phase)}</strong>.</div>`}
+          </div>`;
+      });
+      bodyHtml=`<div class="subgroup-list">${sgSections}</div>`;
+    } else {
+      bodyHtml=`<div class="status-grid">${buildStatusCols(allSubs)}</div>`;
     }
 
     epicCards+=`
@@ -412,7 +474,7 @@ function render(){
             </div>
           </div>
         </div>
-        <div class="status-grid">${colsHtml}</div>
+        ${bodyHtml}
       </div>`;
   });
 
