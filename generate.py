@@ -86,6 +86,8 @@ def status_group(name):
     nl = (name or "").lower().strip()
     if any(x in nl for x in ["done", "closed", "resolved", "approval complete", "承認完了"]):
         return "done"
+    if any(x in nl for x in ["btec"]):
+        return "btecreview"
     if any(x in nl for x in ["review", "内部レビュー中"]):
         return "review"
     if any(x in nl for x in ["progress", "作成中"]):
@@ -273,7 +275,7 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .hrs-tag-lg{font-size:14px;padding:6px 16px;}
 
 /* ── status columns ── */
-.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
+.status-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0;}
 .status-col{padding:14px 16px;border-right:1px solid var(--bdr);}
 .status-col:last-child{border-right:none;}
 .status-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
@@ -297,6 +299,8 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .col-ip     .status-count{color:var(--ylw);}
 .col-review .status-dot{background:var(--org);}
 .col-review .status-count{color:var(--org);}
+.col-btec   .status-dot{background:#a855f7;}
+.col-btec   .status-count{color:#a855f7;}
 .col-done   .status-dot{background:var(--grn);}
 .col-done   .status-count{color:var(--grn);}
 
@@ -328,10 +332,11 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .uncat-table td{padding:7px 10px;font-size:12px;border-bottom:1px solid rgba(46,50,80,.5);}
 .uncat-table tr:last-child td{border-bottom:none;}
 .stag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;}
-.stag-todo      {background:rgba(136,146,164,.18);color:var(--mut);}
-.stag-inprogress{background:rgba(255,197,66,.15);color:var(--ylw);}
-.stag-review    {background:rgba(255,159,67,.15);color:var(--org);}
-.stag-done      {background:rgba(0,196,140,.15);color:var(--grn);}
+.stag-todo       {background:rgba(136,146,164,.18);color:var(--mut);}
+.stag-inprogress {background:rgba(255,197,66,.15);color:var(--ylw);}
+.stag-review     {background:rgba(255,159,67,.15);color:var(--org);}
+.stag-btecreview {background:rgba(168,85,247,.15);color:#a855f7;}
+.stag-done       {background:rgba(0,196,140,.15);color:var(--grn);}
 
 /* ── footer ── */
 .ftr{background:var(--sur);border-top:1px solid var(--bdr);
@@ -355,8 +360,8 @@ select#phaseSelect:focus{border-color:var(--acc);}
 
 @media(max-width:700px){
   .status-grid{grid-template-columns:repeat(2,1fr);}
-  .status-col:nth-child(2){border-right:none;}
-  .status-col:nth-child(3){border-top:1px solid var(--bdr);}
+  .status-col:nth-child(even){border-right:none;}
+  .status-col:nth-child(3),.status-col:nth-child(4),.status-col:nth-child(5){border-top:1px solid var(--bdr);}
   .tab-btn{padding:10px 14px;font-size:11px;}
 }
 </style>
@@ -398,10 +403,10 @@ function barColor(p){
   return '#8892a4';
 }
 function groupOf(g){
-  return {todo:'col-todo',inprogress:'col-ip',review:'col-review',done:'col-done'}[g]||'col-todo';
+  return {todo:'col-todo',inprogress:'col-ip',review:'col-review',btecreview:'col-btec',done:'col-done'}[g]||'col-todo';
 }
 function groupLabel(g){
-  return {todo:'To-Do',inprogress:'In Progress',review:'Review',done:'Done'}[g]||g;
+  return {todo:'To-Do',inprogress:'In Progress',review:'Review',btecreview:'In-BTEC Review',done:'Done'}[g]||g;
 }
 function stagClass(g){return 'stag stag-'+g;}
 function esc(s){
@@ -436,7 +441,7 @@ function parentMatchesSG(parentName, sg){
 }
 
 // Status weights for weighted-hours % calculation
-const STATUS_W = {todo:0, inprogress:50, review:80, done:100};
+const STATUS_W = {todo:0, inprogress:30, review:60, btecreview:80, done:100};
 
 // ── % calculation (hours-weighted) ───────────────────────────────────────────
 // For each subtask: D = plannedHrs × (statusWeight/100)
@@ -458,12 +463,13 @@ function epicPct(subs){
 
 function buildStatusCols(subs){
   const COLS=[
-    {key:'todo',      label:'To-Do'},
-    {key:'inprogress',label:'In Progress'},
-    {key:'review',    label:'Review'},
-    {key:'done',      label:'Done'},
+    {key:'todo',       label:'To-Do'},
+    {key:'inprogress', label:'In Progress'},
+    {key:'review',     label:'Review'},
+    {key:'btecreview', label:'In-BTEC Review'},
+    {key:'done',       label:'Done'},
   ];
-  const groups={todo:[],inprogress:[],review:[],done:[]};
+  const groups={todo:[],inprogress:[],review:[],btecreview:[],done:[]};
   subs.forEach(s=>{ (groups[s.group]=groups[s.group]||[]).push(s); });
   let html='';
   COLS.forEach(c=>{
