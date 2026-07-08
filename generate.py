@@ -262,7 +262,32 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .pbar-wrap{width:120px;}
 .pbar-track{background:var(--sur2);border-radius:4px;height:6px;overflow:hidden;}
 .pbar-fill{height:100%;border-radius:4px;}
-.epic-hrs{font-size:11px;color:var(--mut);white-space:nowrap;}
+
+/* ── hours summary boxes ── */
+.hrs-row{display:flex;gap:0;border-top:1px solid var(--bdr);background:var(--bg);}
+.hrs-box{
+  flex:1;padding:10px 14px;border-right:1px solid var(--bdr);
+  border-left:3px solid transparent;
+}
+.hrs-box:last-child{border-right:none;}
+.hrs-box-label{font-size:10px;font-weight:700;text-transform:uppercase;
+               letter-spacing:.08em;margin-bottom:5px;}
+.hrs-box-value{font-size:20px;font-weight:800;line-height:1;}
+.hrs-todo   {border-left-color:var(--mut);}
+.hrs-todo   .hrs-box-label{color:var(--mut);}
+.hrs-todo   .hrs-box-value{color:var(--txt);}
+.hrs-ip     {border-left-color:var(--ylw);}
+.hrs-ip     .hrs-box-label{color:var(--ylw);}
+.hrs-ip     .hrs-box-value{color:var(--txt);}
+.hrs-review {border-left-color:var(--org);}
+.hrs-review .hrs-box-label{color:var(--org);}
+.hrs-review .hrs-box-value{color:var(--txt);}
+.hrs-done   {border-left-color:var(--grn);}
+.hrs-done   .hrs-box-label{color:var(--grn);}
+.hrs-done   .hrs-box-value{color:var(--txt);}
+.hrs-total  {border-left-color:var(--acc);}
+.hrs-total  .hrs-box-label{color:var(--acc);}
+.hrs-total  .hrs-box-value{color:var(--txt);}
 
 /* ── status columns ── */
 .status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
@@ -272,8 +297,7 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .status-label{font-size:11px;font-weight:600;text-transform:uppercase;
               letter-spacing:.06em;color:var(--mut);}
-.status-count{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px;}
-.status-hrs{font-size:11px;color:var(--mut);margin-bottom:8px;}
+.status-count{font-size:28px;font-weight:800;line-height:1;margin-bottom:10px;}
 .task-list{display:flex;flex-direction:column;gap:4px;}
 .task-chip{
   font-size:11px;color:var(--txt);background:var(--sur2);
@@ -451,7 +475,6 @@ function buildStatusCols(subs){
   let html='';
   COLS.forEach(c=>{
     const items=groups[c.key]||[];
-    const hrs=sumHrs(items);
     const seen=new Set();
     let chips='';
     items.forEach(s=>{
@@ -467,11 +490,32 @@ function buildStatusCols(subs){
           <span class="status-label">${c.label}</span>
         </div>
         <div class="status-count">${items.length}</div>
-        <div class="status-hrs">${fmtHrs(hrs)}</div>
         <div class="task-list">${chips||'<span style="font-size:11px;color:var(--mut)">—</span>'}</div>
       </div>`;
   });
   return html;
+}
+
+// ── Hours boxes builder ───────────────────────────────────────────────────────
+
+function buildHrsRow(subs, showTotal=false){
+  const groups={todo:[],inprogress:[],review:[],done:[]};
+  subs.forEach(s=>{ (groups[s.group]=groups[s.group]||[]).push(s); });
+  const tH=sumHrs(groups.todo||[]);
+  const iH=sumHrs(groups.inprogress||[]);
+  const rH=sumHrs(groups.review||[]);
+  const dH=sumHrs(groups.done||[]);
+  const total=tH+iH+rH+dH;
+  if(total===0&&!showTotal) return '';
+  let boxes=`
+    <div class="hrs-box hrs-todo"><div class="hrs-box-label">To-Do</div><div class="hrs-box-value">${fmtHrs(tH)}</div></div>
+    <div class="hrs-box hrs-ip"><div class="hrs-box-label">In Progress</div><div class="hrs-box-value">${fmtHrs(iH)}</div></div>
+    <div class="hrs-box hrs-review"><div class="hrs-box-label">Review</div><div class="hrs-box-value">${fmtHrs(rH)}</div></div>
+    <div class="hrs-box hrs-done"><div class="hrs-box-label">Done</div><div class="hrs-box-value">${fmtHrs(dH)}</div></div>`;
+  if(showTotal){
+    boxes+=`<div class="hrs-box hrs-total"><div class="hrs-box-label">Total</div><div class="hrs-box-value">${fmtHrs(total)}</div></div>`;
+  }
+  return `<div class="hrs-row">${boxes}</div>`;
 }
 
 // ── Tab bar ──────────────────────────────────────────────────────────────────
@@ -521,16 +565,6 @@ function renderMain(grpLabel, activeTab){
     const pct=epicPct(allSubs);
     const col=barColor(pct);
 
-    // Hours breakdown for epic header
-    const doneHrs =sumHrs(allSubs.filter(s=>s.group==='done'));
-    const revHrs  =sumHrs(allSubs.filter(s=>s.group==='review'));
-    const ipHrs   =sumHrs(allSubs.filter(s=>s.group==='inprogress'));
-    const todoHrs =sumHrs(allSubs.filter(s=>s.group==='todo'));
-    const totalHrs=doneHrs+revHrs+ipHrs+todoHrs;
-    const hrsLabel=totalHrs>0
-      ? `Done ${fmtHrs(doneHrs)} · Review ${fmtHrs(revHrs)} · IP ${fmtHrs(ipHrs)} · Todo ${fmtHrs(todoHrs)}`
-      : '';
-
     if(total===0){
       epicCards+=`
         <div class="epic-card">
@@ -565,14 +599,14 @@ function renderMain(grpLabel, activeTab){
               </div>
             </div>
             ${sgSubs.length
-              ?`<div class="status-grid">${buildStatusCols(sgSubs)}</div>`
+              ?`<div class="status-grid">${buildStatusCols(sgSubs)}</div>${buildHrsRow(sgSubs)}`
               :`<div class="no-data" style="padding:10px 18px;text-align:left">
                   No <strong>${esc(activeTab)}</strong> subtasks in this sub-group.</div>`}
           </div>`;
       });
       bodyHtml=`<div class="subgroup-list">${sgSections}</div>`;
     } else {
-      bodyHtml=`<div class="status-grid">${buildStatusCols(allSubs)}</div>`;
+      bodyHtml=`<div class="status-grid">${buildStatusCols(allSubs)}</div>${buildHrsRow(allSubs)}`;
     }
 
     epicCards+=`
@@ -586,7 +620,6 @@ function renderMain(grpLabel, activeTab){
               <div class="pbar-fill" style="width:${pct}%;background:${col}"></div>
             </div>
           </div>
-          ${hrsLabel?`<span class="epic-hrs">${hrsLabel}</span>`:''}
         </div>
         ${bodyHtml}
       </div>`;
@@ -595,34 +628,6 @@ function renderMain(grpLabel, activeTab){
   // Project-level summary
   const projPct=epicPct(allTabSubs);
   const projCol=barColor(projPct);
-  const pDone=sumHrs(allTabSubs.filter(s=>s.group==='done'));
-  const pRev =sumHrs(allTabSubs.filter(s=>s.group==='review'));
-  const pIp  =sumHrs(allTabSubs.filter(s=>s.group==='inprogress'));
-  const pTodo=sumHrs(allTabSubs.filter(s=>s.group==='todo'));
-  const pTotal=pDone+pRev+pIp+pTodo;
-  const projHrsRow=pTotal>0?`
-    <div style="display:flex;gap:20px;margin-top:14px;flex-wrap:wrap;">
-      <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Done</div>
-        <div style="font-size:18px;font-weight:700;color:var(--grn)">${fmtHrs(pDone)}</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Review</div>
-        <div style="font-size:18px;font-weight:700;color:var(--org)">${fmtHrs(pRev)}</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">In Progress</div>
-        <div style="font-size:18px;font-weight:700;color:var(--ylw)">${fmtHrs(pIp)}</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">To-Do</div>
-        <div style="font-size:18px;font-weight:700;color:var(--mut)">${fmtHrs(pTodo)}</div>
-      </div>
-      <div style="text-align:center;border-left:1px solid var(--bdr);padding-left:20px;">
-        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total</div>
-        <div style="font-size:18px;font-weight:700;color:var(--txt)">${fmtHrs(pTotal)}</div>
-      </div>
-    </div>`:'';
   const projSection=`
     <div class="project-summary">
       <h2>Project Completion — ${esc(grpLabel)} › ${esc(activeTab)}</h2>
@@ -635,7 +640,7 @@ function renderMain(grpLabel, activeTab){
           <div class="proj-lbl">${allTabSubs.length} "${esc(activeTab)}" subtasks across ${DATA.length} epics</div>
         </div>
       </div>
-      ${projHrsRow}
+      ${buildHrsRow(allTabSubs, true)}
     </div>`;
 
   // Uncategorized subtasks (phaseGroup === null)
