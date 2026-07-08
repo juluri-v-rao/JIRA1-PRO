@@ -262,6 +262,7 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .pbar-wrap{width:120px;}
 .pbar-track{background:var(--sur2);border-radius:4px;height:6px;overflow:hidden;}
 .pbar-fill{height:100%;border-radius:4px;}
+.epic-hrs{font-size:11px;color:var(--mut);white-space:nowrap;}
 
 /* ── status columns ── */
 .status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
@@ -271,7 +272,8 @@ select#phaseSelect:focus{border-color:var(--acc);}
 .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .status-label{font-size:11px;font-weight:600;text-transform:uppercase;
               letter-spacing:.06em;color:var(--mut);}
-.status-count{font-size:28px;font-weight:800;line-height:1;margin-bottom:10px;}
+.status-count{font-size:28px;font-weight:800;line-height:1;margin-bottom:4px;}
+.status-hrs{font-size:11px;color:var(--mut);margin-bottom:8px;}
 .task-list{display:flex;flex-direction:column;gap:4px;}
 .task-chip{
   font-size:11px;color:var(--txt);background:var(--sur2);
@@ -399,6 +401,11 @@ function esc(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
                   .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function fmtHrs(h){
+  if(!h||h===0) return '0h';
+  return h<1 ? Math.round(h*60)+'m' : (Math.round(h*10)/10)+'h';
+}
+function sumHrs(subs){ return subs.reduce((a,s)=>a+(s.plannedHrs||0),0); }
 
 // ── PM-05 sub-group config ────────────────────────────────────────────────────
 
@@ -444,6 +451,7 @@ function buildStatusCols(subs){
   let html='';
   COLS.forEach(c=>{
     const items=groups[c.key]||[];
+    const hrs=sumHrs(items);
     const seen=new Set();
     let chips='';
     items.forEach(s=>{
@@ -459,6 +467,7 @@ function buildStatusCols(subs){
           <span class="status-label">${c.label}</span>
         </div>
         <div class="status-count">${items.length}</div>
+        <div class="status-hrs">${fmtHrs(hrs)}</div>
         <div class="task-list">${chips||'<span style="font-size:11px;color:var(--mut)">—</span>'}</div>
       </div>`;
   });
@@ -511,6 +520,16 @@ function renderMain(grpLabel, activeTab){
     const total=allSubs.length;
     const pct=epicPct(allSubs);
     const col=barColor(pct);
+
+    // Hours breakdown for epic header
+    const doneHrs =sumHrs(allSubs.filter(s=>s.group==='done'));
+    const revHrs  =sumHrs(allSubs.filter(s=>s.group==='review'));
+    const ipHrs   =sumHrs(allSubs.filter(s=>s.group==='inprogress'));
+    const todoHrs =sumHrs(allSubs.filter(s=>s.group==='todo'));
+    const totalHrs=doneHrs+revHrs+ipHrs+todoHrs;
+    const hrsLabel=totalHrs>0
+      ? `Done ${fmtHrs(doneHrs)} · Review ${fmtHrs(revHrs)} · IP ${fmtHrs(ipHrs)} · Todo ${fmtHrs(todoHrs)}`
+      : '';
 
     if(total===0){
       epicCards+=`
@@ -567,6 +586,7 @@ function renderMain(grpLabel, activeTab){
               <div class="pbar-fill" style="width:${pct}%;background:${col}"></div>
             </div>
           </div>
+          ${hrsLabel?`<span class="epic-hrs">${hrsLabel}</span>`:''}
         </div>
         ${bodyHtml}
       </div>`;
@@ -575,6 +595,34 @@ function renderMain(grpLabel, activeTab){
   // Project-level summary
   const projPct=epicPct(allTabSubs);
   const projCol=barColor(projPct);
+  const pDone=sumHrs(allTabSubs.filter(s=>s.group==='done'));
+  const pRev =sumHrs(allTabSubs.filter(s=>s.group==='review'));
+  const pIp  =sumHrs(allTabSubs.filter(s=>s.group==='inprogress'));
+  const pTodo=sumHrs(allTabSubs.filter(s=>s.group==='todo'));
+  const pTotal=pDone+pRev+pIp+pTodo;
+  const projHrsRow=pTotal>0?`
+    <div style="display:flex;gap:20px;margin-top:14px;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Done</div>
+        <div style="font-size:18px;font-weight:700;color:var(--grn)">${fmtHrs(pDone)}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Review</div>
+        <div style="font-size:18px;font-weight:700;color:var(--org)">${fmtHrs(pRev)}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">In Progress</div>
+        <div style="font-size:18px;font-weight:700;color:var(--ylw)">${fmtHrs(pIp)}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">To-Do</div>
+        <div style="font-size:18px;font-weight:700;color:var(--mut)">${fmtHrs(pTodo)}</div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--bdr);padding-left:20px;">
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Total</div>
+        <div style="font-size:18px;font-weight:700;color:var(--txt)">${fmtHrs(pTotal)}</div>
+      </div>
+    </div>`:'';
   const projSection=`
     <div class="project-summary">
       <h2>Project Completion — ${esc(grpLabel)} › ${esc(activeTab)}</h2>
@@ -587,6 +635,7 @@ function renderMain(grpLabel, activeTab){
           <div class="proj-lbl">${allTabSubs.length} "${esc(activeTab)}" subtasks across ${DATA.length} epics</div>
         </div>
       </div>
+      ${projHrsRow}
     </div>`;
 
   // Uncategorized subtasks (phaseGroup === null)
